@@ -2,7 +2,6 @@ import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
 import { initTRPC } from '@trpc/server';
 import { z } from 'zod';
 
-// Define the Netlify event type
 type NetlifyEvent = {
   path: string;
   httpMethod: string;
@@ -13,7 +12,6 @@ type NetlifyEvent = {
   multiValueQueryStringParameters?: Record<string, string[]>;
 };
 
-// Define the context type for Netlify
 type NetlifyContext = {
   event: NetlifyEvent;
   context: {
@@ -26,32 +24,25 @@ type NetlifyContext = {
   };
 };
 
-// Initialize tRPC
 const t = initTRPC.context<NetlifyContext>().create();
 
-// Create the tRPC router
 export const appRouter = t.router({
   hello: t.procedure
     .input(z.string())
     .query(({ input }) => {
-      console.log('Received input:', input); // Debug
+      console.log('Received input:', input);
       return `Hello, ${input}!`;
     }),
 });
 
-// Export the Netlify handler
 export const handler = async (event: NetlifyEvent, context: NetlifyContext['context']) => {
-  console.log('Event:', JSON.stringify(event, null, 2)); // Debug
+  console.log('Event:', JSON.stringify(event, null, 2));
   try {
-    // Strip '/trpc' from the path to get the procedure path
-    const procedurePath = event.path.replace(/^\/trpc\/?/, '') || '';
+    // Strip '/.netlify/functions/api' from the path to get the procedure path
+    const procedurePath = event.path.replace(/^\/\.netlify\/functions\/api\/?/, '') || '';
 
-    // Build query parameters
+    // Use query parameters directly without JSON encoding
     const queryParams = new URLSearchParams(event.queryStringParameters || {});
-    // For GET requests, encode input as JSON string
-    if (event.httpMethod === 'GET' && event.queryStringParameters?.input) {
-      queryParams.set('input', JSON.stringify(event.queryStringParameters.input));
-    }
 
     const requestOptions: RequestInit = {
       method: event.httpMethod,
@@ -61,15 +52,14 @@ export const handler = async (event: NetlifyEvent, context: NetlifyContext['cont
       },
     };
 
-    // Only include body for non-GET/HEAD requests
     if (event.body && event.httpMethod !== 'GET' && event.httpMethod !== 'HEAD') {
       requestOptions.body = event.body;
     }
 
     const response = await fetchRequestHandler({
-      endpoint: '/trpc',
+      endpoint: '/.netlify/functions/api',
       req: new Request(
-        `https://ts-trpc.netlify.app/trpc/${procedurePath}?${queryParams.toString()}`,
+        `https://ts-trpc.netlify.app/.netlify/functions/api/${procedurePath}?${queryParams.toString()}`,
         requestOptions
       ),
       router: appRouter,
@@ -99,5 +89,4 @@ export const handler = async (event: NetlifyEvent, context: NetlifyContext['cont
   }
 };
 
-// Export the router type for client-side usage
 export type AppRouter = typeof appRouter;

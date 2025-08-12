@@ -1,3 +1,4 @@
+// src/trpc.ts
 import { createTRPCReact } from "@trpc/react-query";
 import { httpBatchLink } from "@trpc/client";
 import type { AppRouter } from "../netlify/functions/api";
