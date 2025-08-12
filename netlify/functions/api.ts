@@ -31,11 +31,9 @@ const t = initTRPC.context<NetlifyContext>().create();
 
 // Create the tRPC router
 export const appRouter = t.router({
-  hello: t.procedure
-    .input(z.string()) // Use zod to validate input as a string
-    .query(({ input }) => {
-      return `Hello, ${input}!`;
-    }),
+  hello: t.procedure.input(z.string()).query(({ input }) => {
+    return `Hello, ${input}!`;
+  }),
 });
 
 // Export the Netlify handler
@@ -50,24 +48,37 @@ export const handler = async (
     let input: string | undefined;
     if (event.queryStringParameters?.input) {
       input = event.queryStringParameters.input;
-    } else if (event.body) {
+    } else if (
+      event.body &&
+      event.httpMethod !== "GET" &&
+      event.httpMethod !== "HEAD"
+    ) {
       const body = JSON.parse(event.body);
       input = body.input;
     }
 
-    const queryParams = event.queryStringParameters
-      ? `?${new URLSearchParams(event.queryStringParameters)}`
-      : "";
+    // Build query parameters
+    const queryParams = new URLSearchParams(event.queryStringParameters || {});
+    // Include input in query parameters for GET requests if present
+    if (input && (event.httpMethod === "GET" || event.httpMethod === "HEAD")) {
+      queryParams.set("input", input);
+    }
+
+    const requestOptions: RequestInit = {
+      method: event.httpMethod,
+      headers: event.headers,
+    };
+
+    // Only include body for non-GET/HEAD requests
+    if (input && event.httpMethod !== "GET" && event.httpMethod !== "HEAD") {
+      requestOptions.body = JSON.stringify({ input });
+    }
 
     const response = await fetchRequestHandler({
       endpoint: "/trpc",
       req: new Request(
-        `https://your-site.netlify.app/trpc/${procedurePath}${queryParams}`,
-        {
-          method: event.httpMethod,
-          headers: event.headers,
-          body: input ? JSON.stringify({ input }) : event.body,
-        }
+        `https://ts-trpc.netlify.app/trpc/${procedurePath}?${queryParams.toString()}`,
+        requestOptions
       ),
       router: appRouter,
       createContext: () => ({ event, context }),
@@ -77,6 +88,8 @@ export const handler = async (
       statusCode: response.status,
       headers: {
         "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         ...Object.fromEntries(response.headers.entries()),
       },
       body: JSON.stringify(await response.json()),
@@ -85,7 +98,11 @@ export const handler = async (
     console.error("Error in Netlify function:", error);
     return {
       statusCode: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      },
       body: JSON.stringify({ error: "Internal Server Error" }),
     };
   }
