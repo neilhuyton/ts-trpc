@@ -1,6 +1,6 @@
-import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import { initTRPC } from "@trpc/server";
-import { z } from "zod";
+import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
+import { initTRPC } from '@trpc/server';
+import { z } from 'zod';
 
 // Define the Netlify event type
 type NetlifyEvent = {
@@ -31,52 +31,43 @@ const t = initTRPC.context<NetlifyContext>().create();
 
 // Create the tRPC router
 export const appRouter = t.router({
-  hello: t.procedure.input(z.string()).mutation(({ input }) => {
-    // .query changed to .mutation
-    console.log("Received input:", input);
-    return `Hello, ${input}!`;
-  }),
+  hello: t.procedure
+    .input(z.string())
+    .query(({ input }) => {
+      console.log('Received input:', input); // Debug
+      return `Hello, ${input}!`;
+    }),
 });
 
 // Export the Netlify handler
-export const handler = async (
-  event: NetlifyEvent,
-  context: NetlifyContext["context"]
-) => {
-  console.log("Event:", JSON.stringify(event, null, 2)); // Debug
+export const handler = async (event: NetlifyEvent, context: NetlifyContext['context']) => {
+  console.log('Event:', JSON.stringify(event, null, 2)); // Debug
   try {
     // Strip '/trpc' from the path to get the procedure path
-    const procedurePath = event.path.replace(/^\/trpc\/?/, "") || "";
+    const procedurePath = event.path.replace(/^\/trpc\/?/, '') || '';
 
     // Build query parameters
     const queryParams = new URLSearchParams(event.queryStringParameters || {});
     // For GET requests, encode input as JSON string
-    if (event.httpMethod === "GET" && event.queryStringParameters?.input) {
-      queryParams.set(
-        "input",
-        JSON.stringify(event.queryStringParameters.input)
-      );
+    if (event.httpMethod === 'GET' && event.queryStringParameters?.input) {
+      queryParams.set('input', JSON.stringify(event.queryStringParameters.input));
     }
 
     const requestOptions: RequestInit = {
       method: event.httpMethod,
       headers: {
         ...event.headers,
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
     };
 
     // Only include body for non-GET/HEAD requests
-    if (
-      event.body &&
-      event.httpMethod !== "GET" &&
-      event.httpMethod !== "HEAD"
-    ) {
+    if (event.body && event.httpMethod !== 'GET' && event.httpMethod !== 'HEAD') {
       requestOptions.body = event.body;
     }
 
     const response = await fetchRequestHandler({
-      endpoint: "/trpc",
+      endpoint: '/trpc',
       req: new Request(
         `https://ts-trpc.netlify.app/trpc/${procedurePath}?${queryParams.toString()}`,
         requestOptions
@@ -88,25 +79,22 @@ export const handler = async (
     return {
       statusCode: response.status,
       headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       },
       body: JSON.stringify(await response.json()),
     };
   } catch (error) {
-    console.error("Error in Netlify function:", error);
+    console.error('Error in Netlify function:', error);
     return {
       statusCode: 500,
       headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       },
-      body: JSON.stringify({
-        error: "Internal Server Error",
-        details: error.message,
-      }),
+      body: JSON.stringify({ error: 'Internal Server Error', details: error.message }),
     };
   }
 };
