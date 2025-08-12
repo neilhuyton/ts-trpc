@@ -3,9 +3,11 @@ import { trpc } from "./trpc";
 
 function App() {
   const [name, setName] = useState("");
-  const { data, error, isLoading } = trpc.hello.useQuery(name, {
-    enabled: !!name,
-  });
+  const mutation = trpc.hello.useMutation();
+
+  const handleSubmit = () => {
+    mutation.mutate(name);
+  };
 
   return (
     <div>
@@ -16,9 +18,12 @@ function App() {
         onChange={(e) => setName(e.target.value)}
         placeholder="Enter your name"
       />
-      {isLoading && <p>Loading...</p>}
-      {error && <p>Error: {error.message}</p>}
-      {data && <p>{data}</p>}
+      <button onClick={handleSubmit} disabled={mutation.isPending}>
+        Submit
+      </button>
+      {mutation.isPending && <p>Loading...</p>}
+      {mutation.error && <p>Error: {mutation.error.message}</p>}
+      {mutation.data && <p>{mutation.data}</p>}
     </div>
   );
 }

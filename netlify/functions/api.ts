@@ -31,7 +31,9 @@ const t = initTRPC.context<NetlifyContext>().create();
 
 // Create the tRPC router
 export const appRouter = t.router({
-  hello: t.procedure.input(z.string()).query(({ input }) => {
+  hello: t.procedure.input(z.string()).mutation(({ input }) => {
+    // .query changed to .mutation
+    console.log("Received input:", input);
     return `Hello, ${input}!`;
   }),
 });
@@ -41,37 +43,36 @@ export const handler = async (
   event: NetlifyEvent,
   context: NetlifyContext["context"]
 ) => {
+  console.log("Event:", JSON.stringify(event, null, 2)); // Debug
   try {
     // Strip '/trpc' from the path to get the procedure path
     const procedurePath = event.path.replace(/^\/trpc\/?/, "") || "";
-    // Extract input from queryStringParameters or body
-    let input: string | undefined;
-    if (event.queryStringParameters?.input) {
-      input = event.queryStringParameters.input;
-    } else if (
-      event.body &&
-      event.httpMethod !== "GET" &&
-      event.httpMethod !== "HEAD"
-    ) {
-      const body = JSON.parse(event.body);
-      input = body.input;
-    }
 
     // Build query parameters
     const queryParams = new URLSearchParams(event.queryStringParameters || {});
-    // Include input in query parameters for GET requests if present
-    if (input && (event.httpMethod === "GET" || event.httpMethod === "HEAD")) {
-      queryParams.set("input", input);
+    // For GET requests, encode input as JSON string
+    if (event.httpMethod === "GET" && event.queryStringParameters?.input) {
+      queryParams.set(
+        "input",
+        JSON.stringify(event.queryStringParameters.input)
+      );
     }
 
     const requestOptions: RequestInit = {
       method: event.httpMethod,
-      headers: event.headers,
+      headers: {
+        ...event.headers,
+        "Content-Type": "application/json",
+      },
     };
 
     // Only include body for non-GET/HEAD requests
-    if (input && event.httpMethod !== "GET" && event.httpMethod !== "HEAD") {
-      requestOptions.body = JSON.stringify({ input });
+    if (
+      event.body &&
+      event.httpMethod !== "GET" &&
+      event.httpMethod !== "HEAD"
+    ) {
+      requestOptions.body = event.body;
     }
 
     const response = await fetchRequestHandler({
@@ -90,7 +91,6 @@ export const handler = async (
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        ...Object.fromEntries(response.headers.entries()),
       },
       body: JSON.stringify(await response.json()),
     };
@@ -103,7 +103,10 @@ export const handler = async (
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       },
-      body: JSON.stringify({ error: "Internal Server Error" }),
+      body: JSON.stringify({
+        error: "Internal Server Error",
+        details: error.message,
+      }),
     };
   }
 };
