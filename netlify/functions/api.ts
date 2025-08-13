@@ -27,7 +27,7 @@ type NetlifyContext = {
 const t = initTRPC.context<NetlifyContext>().create();
 
 export const appRouter = t.router({
-  hello: t.procedure.input(z.string()).mutation(({ input }) => {
+  hello: t.procedure.input(z.object({ input: z.string() })).mutation(({ input }) => {
     // .query changed to .mutation
     console.log("Received input:", input);
     return `Hello, ${input}!`;
