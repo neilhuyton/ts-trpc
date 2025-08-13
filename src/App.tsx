@@ -1,13 +1,12 @@
-// src/App.tsx
 import { useState } from "react";
 import { trpc } from "./trpc";
 
 function App() {
   const [name, setName] = useState("");
-  const mutation = trpc.hello.useMutation();
+  const query = trpc.hello.useQuery({ input: name }, { enabled: false });
 
   const handleSubmit = () => {
-    mutation.mutate({ input: name });
+    query.refetch();
   };
 
   return (
@@ -19,12 +18,12 @@ function App() {
         onChange={(e) => setName(e.target.value)}
         placeholder="Enter your name"
       />
-      <button onClick={handleSubmit} disabled={mutation.isPending}>
+      <button onClick={handleSubmit} disabled={query.isFetching}>
         Submit
       </button>
-      {mutation.isPending && <p>Loading...</p>}
-      {mutation.error && <p>Error: {mutation.error.message}</p>}
-      {mutation.data && <p>{mutation.data}</p>}
+      {query.isFetching && <p>Loading...</p>}
+      {query.error && <p>Error: {query.error.message}</p>}
+      {query.data && <p>{query.data}</p>}
     </div>
   );
 }

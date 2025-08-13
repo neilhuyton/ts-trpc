@@ -1,3 +1,4 @@
+// netlify/functions/api.ts
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { initTRPC } from "@trpc/server";
 import { z } from "zod";
@@ -26,28 +27,31 @@ type NetlifyContext = {
 
 const t = initTRPC.context<NetlifyContext>().create();
 
+// export const appRouter = t.router({
+//   hello: t.procedure.input(z.object({ input: z.string() })).mutation(({ input }) => {
+//     return `Hello, ${input}!`;
+//   }),
+// });
+
 export const appRouter = t.router({
-  hello: t.procedure.input(z.object({ input: z.string() })).mutation(({ input }) => {
-    // .query changed to .mutation
-    // console.log("Received input:", input);
-    return `Hello, ${input}!`;
-  }),
+  hello: t.procedure
+    .input(z.object({ input: z.string() }))
+    .query(({ input }) => {
+      return `Hello, ${input}!`;
+    }),
 });
 
 export const handler = async (
   event: NetlifyEvent,
   context: NetlifyContext["context"]
 ) => {
-//   console.log("Event:", JSON.stringify(event, null, 2));
   try {
-    // Strip '/.netlify/functions/api' from the path to get the procedure path
     const procedurePath =
       event.path.replace(/^\/\.netlify\/functions\/api\/?/, "") || "";
-
-    // Use query parameters directly without JSON encoding
     const queryParams = new URLSearchParams(event.queryStringParameters || {});
 
-    const requestOptions: RequestInit = {
+    // Transform GET request for 'hello' into a POST-like request
+    let requestOptions: RequestInit = {
       method: event.httpMethod,
       headers: {
         ...event.headers,
@@ -55,7 +59,13 @@ export const handler = async (
       },
     };
 
-    if (
+    if (event.httpMethod === "GET" && procedurePath === "hello") {
+      const input = queryParams.get("input") || "";
+      requestOptions.method = "POST";
+      requestOptions.body = JSON.stringify([
+        { id: 0, jsonrpc: "2.0", method: "hello", params: { input } },
+      ]);
+    } else if (
       event.body &&
       event.httpMethod !== "GET" &&
       event.httpMethod !== "HEAD"
@@ -83,7 +93,6 @@ export const handler = async (
       body: JSON.stringify(await response.json()),
     };
   } catch (error) {
-    // console.error("Error in Netlify function:", error);
     return {
       statusCode: 500,
       headers: {
