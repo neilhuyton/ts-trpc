@@ -1,3 +1,4 @@
+// src/App.tsx
 import { useState } from "react";
 import { trpc } from "./trpc";
 
@@ -6,7 +7,7 @@ function App() {
   const mutation = trpc.hello.useMutation();
 
   const handleSubmit = () => {
-    mutation.mutate(name);
+    mutation.mutate({ input: name });
   };
 
   return (

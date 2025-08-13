@@ -29,7 +29,7 @@ const t = initTRPC.context<NetlifyContext>().create();
 export const appRouter = t.router({
   hello: t.procedure.input(z.object({ input: z.string() })).mutation(({ input }) => {
     // .query changed to .mutation
-    console.log("Received input:", input);
+    // console.log("Received input:", input);
     return `Hello, ${input}!`;
   }),
 });
@@ -38,7 +38,7 @@ export const handler = async (
   event: NetlifyEvent,
   context: NetlifyContext["context"]
 ) => {
-  console.log("Event:", JSON.stringify(event, null, 2));
+//   console.log("Event:", JSON.stringify(event, null, 2));
   try {
     // Strip '/.netlify/functions/api' from the path to get the procedure path
     const procedurePath =
@@ -83,7 +83,7 @@ export const handler = async (
       body: JSON.stringify(await response.json()),
     };
   } catch (error) {
-    console.error("Error in Netlify function:", error);
+    // console.error("Error in Netlify function:", error);
     return {
       statusCode: 500,
       headers: {
